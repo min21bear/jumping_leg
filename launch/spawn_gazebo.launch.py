@@ -47,8 +47,7 @@ def generate_launch_description():
 #gazebo 실행 및 모델 스폰 
     spawn_entity = Node(package='gazebo_ros', executable='spawn_entity.py',
                         arguments=['-topic', 'robot_description',
-                                   '-entity', 'robot',
-                                   '-z', '1'],
+                                   '-entity', 'robot',],
                         output='screen')
 
 #joint 상태를 확인하는 노드(아마도 service를 사용하는 것 같습니다)

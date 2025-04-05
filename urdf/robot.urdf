@@ -12,6 +12,14 @@
     <child link="hip_link"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
+  
+  <joint name="slider_joint" type="prismatic">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="hip_link"/>
+    <axis xyz="0 0 0.5"/>
+    <limit effort="1000" lower="0" upper="1" velocity="100"/>
+  </joint>
 
   <link name="hip_link">
     <inertial>
@@ -95,6 +103,16 @@
       <plugin>gazebo_ros2_control/GazeboSystem</plugin>
     </hardware>
 
+    <joint name="slider_joint">
+      <command_interface name="effort">
+        <param name="min">-1000</param>
+        <param name="max">1000</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+      <state_interface name="effort"/>
+    </joint>
+    
     <joint name="hip_to_thigh">
       <command_interface name="position">
         <param name="min">-1.04719732679</param>

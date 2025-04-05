@@ -7,29 +7,29 @@
   <!-- fix robot origin -->
   <link name="world"/>
   
-  <joint name="world_to_base" type="fixed">
+  <!-- <joint name="world_to_base" type="fixed">
     <parent link="world"/>
     <child link="base_link"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint> -->
+
+    <!-- slider joint -->
+  <joint name="slider_joint" type="prismatic">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="world"/>
+    <child link="base_link"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="0" upper="5" effort="1000" velocity="100"/>
   </joint>
 
   <!-- need but don't ues, noooooo i ues it!! NOW-->
   <link name="base_link"/>
 
   <!-- dummy joint -->
-  <!-- <joint name="base_to_hip" type="fixed">
+  <joint name="base_to_hip" type="fixed">
     <parent link="base_link"/>
     <child link="hip_link"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
-  </joint> -->
-
-  <!-- slider joint -->
-  <joint name="slider_joint" type="prismatic">
-    <origin xyz="0 0 0" rpy="0 0 0"/>
-    <parent link="base_link"/>
-    <child link="hip_link"/>
-    <axis xyz="0 0 1"/>
-    <limit lower="0" upper="1" effort="1000" velocity="100"/>
   </joint>
 
   <link name="hip_link">
