@@ -149,10 +149,6 @@
     </joint>
 
     <joint name="hip_to_thigh">
-      <command_interface name="position">
-        <param name="min">-1.04719732679</param>
-        <param name="max">0.523599</param>
-      </command_interface>
       <command_interface name="effort">
         <param name="min">-1000</param>
         <param name="max">1000</param>

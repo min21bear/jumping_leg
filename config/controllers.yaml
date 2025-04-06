@@ -4,9 +4,6 @@ controller_manager:
     
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
-    
-    position_controller:
-      type: position_controllers/JointGroupPositionController
       
     effort_controller:
       type: effort_controllers/JointGroupEffortController
@@ -17,19 +14,6 @@ joint_state_broadcaster:
       - hip_to_thigh
       - thigh_to_shin
       - slider_joint
-
-
-# Position controller configuration
-position_controller:
-  ros__parameters:
-    joints:
-      - hip_to_thigh
-    interface_name: position
-    command_interfaces:
-      - position
-    state_interfaces:
-      - position
-      - velocity
 
 # Effort controller configuration
 effort_controller:
