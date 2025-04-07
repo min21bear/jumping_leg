@@ -42,6 +42,11 @@ public:
       std::chrono::milliseconds(100), 
       std::bind(&RobotController::control_loop, this)
     );
+    
+    // ros 파라미터 정의
+    rcl_interfaces::msg::ParameterDescriptor param_desc;
+    param_desc.read_only = false;
+    this->declare_parameter("input", 0.0, param_desc);
   }
 
 private:
@@ -152,7 +157,7 @@ private:
 
   double jumping(double bent_state, double jump_input)
   {
-    if(DOWN && bent_state < joint_states_["thigh_to_shin"].position && contact_detected_){
+    if(DOWN && contact_detected_){
       return jump_input;
     }
     else{
@@ -184,7 +189,7 @@ private:
   {
     state_division();
 
-    effort_commands_ = {0, -(spring_input_calculation(0, 0, 0, 0) + jumping(2.5, 250)), 0};  // 제어값 입력 예시
+    effort_commands_ = {0, -(spring_input_calculation(0, 0, 0, 0) + jumping(2.5, get_parameter("input").as_double())), 0};  // 제어값 입력 예시
     
     publish_effort_commands();
   }
