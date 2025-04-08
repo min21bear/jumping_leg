@@ -193,7 +193,7 @@ private:
     double theta = joint_states_["thigh_to_shin"].position;
     double d_theta = joint_states_["thigh_to_shin"].velocity;
 
-    return -k*theta +b*d_theta;
+    return -(k*theta +b*d_theta);
   }
 
   double jumping(double base_k, double base_b, double jump_k, double jump_b, double input, double jump_point)
