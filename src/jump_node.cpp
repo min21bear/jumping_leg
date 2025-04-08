@@ -71,9 +71,9 @@ public:
     base_k_desc.read_only = false;
     this->declare_parameter("base_k", 0.0, base_k_desc);
 
-    rcl_interfaces::msg::ParameterDescriptor b_desc;
-    b_desc.read_only = false;
-    this->declare_parameter("b", 0.0, b_desc);
+    rcl_interfaces::msg::ParameterDescriptor base_b_desc;
+    base_b_desc.read_only = false;
+    this->declare_parameter("base_b", 0.0, base_b_desc);
 
     rcl_interfaces::msg::ParameterDescriptor input_desc;
     input_desc.read_only = false;
