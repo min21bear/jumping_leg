@@ -241,10 +241,10 @@ private:
     double i = get_parameter("i").as_double();
     double d = get_parameter("d").as_double();
 
-    double k = get_parameter("base_k").as_double();
-    double b = get_parameter("base_b").as_double();
-    double k = get_parameter("up_k").as_double();
-    double b = get_parameter("up_b").as_double();
+    double base_k = get_parameter("base_k").as_double();
+    double base_b = get_parameter("base_b").as_double();
+    double up_k = get_parameter("up_k").as_double();
+    double up_b = get_parameter("up_b").as_double();
     
     double input = get_parameter("input").as_double();
     double jump_point = get_parameter("jump_point").as_double();
