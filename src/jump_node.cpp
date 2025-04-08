@@ -7,6 +7,8 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <cmath>
+#include <math.h>
 
 /**
  * @brief ROS2 노드 클래스로 Gazebo에 스폰된 URDF 로봇을 제어합니다.
@@ -37,16 +39,41 @@ public:
     // 토픽 구독자 및 발행자 정의 함수 호출
     define_publishers_and_subscribers(qos);
     
-    // 타이머 설정 (10Hz로 제어 명령 발행)
+    // 타이머 설정 (100Hz로 제어 명령 발행)
     timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(100), 
+      std::chrono::milliseconds(10), 
       std::bind(&RobotController::control_loop, this)
     );
     
     // ros 파라미터 정의
-    rcl_interfaces::msg::ParameterDescriptor param_desc;
-    param_desc.read_only = false;
-    this->declare_parameter("input", 0.0, param_desc);
+    // ros2 run jumpin_robot jump_node --ros-args -p parm__1:=%f -p parm_2:=%f -p parm_3:=%f
+    rcl_interfaces::msg::ParameterDescriptor p_desc;
+    p_desc.read_only = false;
+    this->declare_parameter("p", 0.0, p_desc);
+
+    rcl_interfaces::msg::ParameterDescriptor i_desc;
+    i_desc.read_only = false;
+    this->declare_parameter("i", 0.0, i_desc);
+
+    rcl_interfaces::msg::ParameterDescriptor d_desc;
+    d_desc.read_only = false;
+    this->declare_parameter("d", 0.0, d_desc);
+
+    rcl_interfaces::msg::ParameterDescriptor k_desc;
+    k_desc.read_only = false;
+    this->declare_parameter("k", 0.0, k_desc);
+
+    rcl_interfaces::msg::ParameterDescriptor b_desc;
+    b_desc.read_only = false;
+    this->declare_parameter("b", 0.0, b_desc);
+
+    rcl_interfaces::msg::ParameterDescriptor input_desc;
+    input_desc.read_only = false;
+    this->declare_parameter("input", 0.0, input_desc);
+
+    rcl_interfaces::msg::ParameterDescriptor jump_point_desc;
+    jump_point_desc.read_only = false;
+    this->declare_parameter("jump_point", 0.0, jump_point_desc);
   }
 
 private:
@@ -141,29 +168,44 @@ private:
     }
   }
 
-  // 하강, 상승에 맞춰 스프링 입력 계산
-  double spring_input_calculation(double down_k, double down_b, double up_k, double up_b)
-  { 
-    double theta = -joint_states_["thigh_to_shin"].position;
-    double d_theta = -joint_states_["thigh_to_shin"].velocity;
-
-    if(DOWN){
-      return down_k * theta + down_b * d_theta;
-    }
-    else{
-      return up_k * theta + up_b * d_theta;
-    }
-  }
-
-  double jumping(double bent_state, double jump_input)
+  double hip_input(double p_gain, double i_gain, double d_gain)
   {
-    if(DOWN && contact_detected_){
-      return jump_input;
+    //10hz니까 0.1마다 코드 초기화
+    double dt = 0.01;
+    
+    // pid 수식에 사용하기 위해 이전 에러값 미리 정의
+    double last_error = 0.0;
+    
+    // 비례식을 사용하여 목표 각도를 지정
+    double target_angle = -joint_states_["thigh_to_shin"].position / 2.50048;
+
+    //에러값 계산
+    double error = target_angle - joint_states_["hip_to_thigh"].position;
+
+    // RCLCPP_INFO(this->get_logger(), "error: %f", error);
+
+    return p_gain*error + i_gain*error*dt + d_gain*(error - last_error)/dt;
+  }
+
+  // 하강, 상승에 맞춰 스프링 입력 계산
+  double spring_input(double k, double b)
+  { 
+    double theta = joint_states_["thigh_to_shin"].position;
+    double d_theta = joint_states_["thigh_to_shin"].velocity;
+
+    return -k*theta +b*d_theta;
+  }
+
+  double jumping(double base_k, double base_b, double jump_k, double jump_b, double input, double jump_point)
+  {
+    if(DOWN && contact_detected_ && jump_point <= joint_states_["thigh_to_shin"].position){
+      return spring_input(jump_k, jump_b) - input;
     }
     else{
-      return 0;
+      return spring_input(base_k, base_b);
     }
   }
+
 
   /**
    * @brief /effort_controller/commands 토픽에 메시지를 발행하는 함수
@@ -187,9 +229,19 @@ private:
    */
   void control_loop()
   {
+    double p = get_parameter("p").as_double();
+    double i = get_parameter("i").as_double();
+    double d = get_parameter("d").as_double();
+
+    double k = get_parameter("k").as_double();
+    double b = get_parameter("b").as_double();
+    double input = get_parameter("input").as_double();
+
+    double jump_point = get_parameter("jump_point").as_double();
+
     state_division();
 
-    effort_commands_ = {0, -(spring_input_calculation(0, 0, 0, 0) + jumping(2.5, get_parameter("input").as_double())), 0};  // 제어값 입력 예시
+    effort_commands_ = {hip_input(p, i, d), jumping(k, b, k, b, input, jump_point), 0.0};  // 제어값 입력 예시
     
     publish_effort_commands();
   }
