@@ -59,9 +59,17 @@ public:
     d_desc.read_only = false;
     this->declare_parameter("d", 0.0, d_desc);
 
-    rcl_interfaces::msg::ParameterDescriptor k_desc;
-    k_desc.read_only = false;
-    this->declare_parameter("k", 0.0, k_desc);
+    rcl_interfaces::msg::ParameterDescriptor up_k_desc;
+    up_k_desc.read_only = false;
+    this->declare_parameter("up_k", 0.0, up_k_desc);
+
+    rcl_interfaces::msg::ParameterDescriptor up_b_desc;
+    up_b_desc.read_only = false;
+    this->declare_parameter("up_b", 0.0, up_b_desc);
+
+    rcl_interfaces::msg::ParameterDescriptor base_k_desc;
+    base_k_desc.read_only = false;
+    this->declare_parameter("base_k", 0.0, base_k_desc);
 
     rcl_interfaces::msg::ParameterDescriptor b_desc;
     b_desc.read_only = false;
@@ -233,15 +241,17 @@ private:
     double i = get_parameter("i").as_double();
     double d = get_parameter("d").as_double();
 
-    double k = get_parameter("k").as_double();
-    double b = get_parameter("b").as_double();
+    double k = get_parameter("base_k").as_double();
+    double b = get_parameter("base_b").as_double();
+    double k = get_parameter("up_k").as_double();
+    double b = get_parameter("up_b").as_double();
+    
     double input = get_parameter("input").as_double();
-
     double jump_point = get_parameter("jump_point").as_double();
 
     state_division();
 
-    effort_commands_ = {hip_input(p, i, d), jumping(k, b, k, b, input, jump_point), 0.0};  // 제어값 입력 예시
+    effort_commands_ = {hip_input(p, i, d), jumping(base_k, base_b, up_k, up_b, input, jump_point), 0.0};  // 제어값 입력 예시
     
     publish_effort_commands();
   }
