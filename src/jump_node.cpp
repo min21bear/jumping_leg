@@ -71,9 +71,9 @@ public:
     base_k_desc.read_only = false;
     this->declare_parameter("base_k", 0.0, base_k_desc);
 
-    rcl_interfaces::msg::ParameterDescriptor b_desc;
-    b_desc.read_only = false;
-    this->declare_parameter("b", 0.0, b_desc);
+    rcl_interfaces::msg::ParameterDescriptor base_b_desc;
+    base_b_desc.read_only = false;
+    this->declare_parameter("base_b", 0.0, base_b_desc);
 
     rcl_interfaces::msg::ParameterDescriptor input_desc;
     input_desc.read_only = false;
@@ -87,6 +87,9 @@ public:
 private:
 
   bool DOWN = false;
+
+  // pid 수식에 사용하기 위해 이전 에러값 미리 정의
+  double last_error = 0.0;
 
   /**
    * @brief 토픽 구독자와 발행자를 정의하는 함수
@@ -181,14 +184,13 @@ private:
     //10hz니까 0.1마다 코드 초기화
     double dt = 0.01;
     
-    // pid 수식에 사용하기 위해 이전 에러값 미리 정의
-    double last_error = 0.0;
-    
     // 비례식을 사용하여 목표 각도를 지정
     double target_angle = -joint_states_["thigh_to_shin"].position / 2.50048;
 
     //에러값 계산
     double error = target_angle - joint_states_["hip_to_thigh"].position;
+
+    last_error += error;
 
     // RCLCPP_INFO(this->get_logger(), "error: %f", error);
 
@@ -196,21 +198,23 @@ private:
   }
 
   // 하강, 상승에 맞춰 스프링 입력 계산
-  double spring_input(double k, double b)
+  double spring_input(double k, double b, double jump_point)
   { 
-    double theta = joint_states_["thigh_to_shin"].position;
+    // RCLCPP_INFO(this->get_logger(), "state: %f", joint_states_["thigh_to_shin"].position);
+    double theta = joint_states_["thigh_to_shin"].position - jump_point;
     double d_theta = joint_states_["thigh_to_shin"].velocity;
-
+    
     return -(k*theta +b*d_theta);
   }
 
   double jumping(double base_k, double base_b, double jump_k, double jump_b, double input, double jump_point)
   {
     if(DOWN && contact_detected_ && jump_point <= joint_states_["thigh_to_shin"].position){
-      return spring_input(jump_k, jump_b) - input;
+      RCLCPP_INFO(this->get_logger(), "timing is NOW!");
+      return spring_input(jump_k, jump_b, jump_point) - input;
     }
     else{
-      return spring_input(base_k, base_b);
+      return spring_input(base_k, base_b, jump_point);
     }
   }
 
