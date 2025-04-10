@@ -13,8 +13,15 @@ find_package(gazebo_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 
 add_executable(jump_node src/jump_node.cpp)
-
 ament_target_dependencies(jump_node
+  rclcpp
+  control_msgs
+  gazebo_msgs
+  std_msgs
+)
+
+add_executable(jump_node_hz src/jump_node_hz.cpp)
+ament_target_dependencies(jump_node_hz
   rclcpp
   control_msgs
   gazebo_msgs
@@ -24,6 +31,7 @@ ament_target_dependencies(jump_node
 
 install(TARGETS
   jump_node
+  jump_node_hz
   DESTINATION lib/${PROJECT_NAME}
 )
 

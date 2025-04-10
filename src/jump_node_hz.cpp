@@ -82,11 +82,16 @@ public:
     rcl_interfaces::msg::ParameterDescriptor jump_point_desc;
     jump_point_desc.read_only = false;
     this->declare_parameter("jump_point", 0.0, jump_point_desc);
+
+    rcl_interfaces::msg::ParameterDescriptor hz_desc;
+    hz_desc.read_only = false;
+    this->declare_parameter("hz", 0.0, hz_desc);
   }
 
 private:
 
-  bool DOWN = false;
+  //hz에 필요한 타이머 정의
+  rclcpp::Time last_trigger_time_{this->now()};  
 
   // pid 수식에 사용하기 미리 정의
   double error_integral_ = 0.0;
@@ -169,16 +174,23 @@ private:
     contact_detected_ = !msg->states.empty();
   }
 
-  // slider joint의 상태값을 받아서 하상/상승 구분 
-  void state_division()
-  {
-    if(0 <= joint_states_["slider_joint"].velocity){
-      DOWN = true;
+  /**
+ * @brief 특정 주기(Hz 단위)에 맞춰 bool 값을 반환하는 함수
+ * @param hz 원하는 주파수 (Hz)
+ * @return 지정된 주기마다 true, 그 외에는 false
+ */
+    bool jump_hz_trigger(double hz)
+    {
+        rclcpp::Time now = this->now();
+        
+        rclcpp::Duration period = rclcpp::Duration::from_seconds(1.0 / hz);
+        
+        if ((now - last_trigger_time_) >= period) {
+            last_trigger_time_ = now;
+            return true;
+        }
+        return false;
     }
-    else{
-      DOWN = false;
-    }
-  }
 
   double hip_input(double p_gain, double i_gain, double d_gain)
   {
@@ -209,9 +221,9 @@ private:
     return -(k*theta +b*d_theta);
   }
 
-  double jumping(double base_k, double base_b, double jump_k, double jump_b, double input, double jump_point)
+  double jumping(double base_k, double base_b, double jump_k, double jump_b, double input, double jump_point, double hz)
   {
-    if(DOWN && contact_detected_ && jump_point <= joint_states_["thigh_to_shin"].position){
+    if(jump_hz_trigger(hz)){
       RCLCPP_INFO(this->get_logger(), "timing is NOW!");
       return spring_input(jump_k, jump_b, jump_point) - input;
     }
@@ -254,10 +266,9 @@ private:
     
     double input = get_parameter("input").as_double();
     double jump_point = get_parameter("jump_point").as_double();
+    double hz = get_parameter("hz").as_double();
 
-    state_division();
-
-    effort_commands_ = {hip_input(p, i, d), jumping(base_k, base_b, up_k, up_b, input, jump_point), 0.0};  // 제어값 입력 예시
+    effort_commands_ = {hip_input(p, i, d), jumping(base_k, base_b, up_k, up_b, input, jump_point, hz), 0.0};  // 제어값 입력 예시
     
     publish_effort_commands();
   }
