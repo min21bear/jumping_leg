@@ -2,6 +2,7 @@
 #include <control_msgs/msg/dynamic_joint_state.hpp>
 #include <gazebo_msgs/msg/contacts_state.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
+#include <std_msgs/msg/float64.hpp>
 
 #include <memory>
 #include <string>
@@ -97,6 +98,14 @@ private:
   double error_integral_ = 0.0;
   double previous_error_ = 0.0;
 
+  // msg 변수 정의 및 설정
+  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr k_pub_;
+  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr b_pub_;
+  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr m_pub_;
+  std_msgs::msg::Float64 msg_k_;
+  std_msgs::msg::Float64 msg_b_;
+  std_msgs::msg::Float64 msg_m_;
+
   /**
    * @brief 토픽 구독자와 발행자를 정의하는 함수
    * @param qos QoS 설정
@@ -123,6 +132,18 @@ private:
     effort_pub_ = this->create_publisher<std_msgs::msg::Float64MultiArray>(
       "/effort_controller/commands",
       qos
+    );
+
+    k_pub_ = this->create_publisher<std_msgs::msg::Float64>(
+      "/k_value", qos
+    );
+    
+    b_pub_ = this->create_publisher<std_msgs::msg::Float64>(
+      "/b_value", qos
+    );
+    
+    m_pub_ = this->create_publisher<std_msgs::msg::Float64>(
+      "/m_value", qos
     );
   }
   
@@ -179,18 +200,18 @@ private:
  * @param hz 원하는 주파수 (Hz)
  * @return 지정된 주기마다 true, 그 외에는 false
  */
-    bool jump_hz_trigger(double hz)
-    {
-        rclcpp::Time now = this->now();
+  bool jump_hz_trigger(double hz)
+  {
+      rclcpp::Time now = this->now();
+      
+      rclcpp::Duration period = rclcpp::Duration::from_seconds(1.0 / hz);
         
-        rclcpp::Duration period = rclcpp::Duration::from_seconds(1.0 / hz);
-        
-        if ((now - last_trigger_time_) >= period) {
-            last_trigger_time_ = now;
-            return true;
+      if ((now - last_trigger_time_) >= period) {
+          last_trigger_time_ = now;
+          return true;
         }
-        return false;
-    }
+      return false;
+  }
 
   double hip_input(double p_gain, double i_gain, double d_gain)
   {
@@ -218,6 +239,9 @@ private:
     double theta = joint_states_["thigh_to_shin"].position - jump_point;
     double d_theta = joint_states_["thigh_to_shin"].velocity;
     
+    msg_k_.data = -k*theta;
+    msg_b_.data = -b*d_theta;
+
     return -(k*theta +b*d_theta);
   }
 
@@ -225,7 +249,8 @@ private:
   {
     if(jump_hz_trigger(hz)){
       RCLCPP_INFO(this->get_logger(), "timing is NOW!");
-      return spring_input(jump_k, jump_b, jump_point) - input;
+      msg_m_.data = -input;
+      return spring_input(jump_k, jump_b, 0) - input;
     }
     else{
       return spring_input(base_k, base_b, jump_point);
@@ -246,6 +271,9 @@ private:
     
     // 메시지 발행
     effort_pub_->publish(std::move(msg));
+    k_pub_->publish(std::move(msg_k_));
+    b_pub_->publish(std::move(msg_b_));
+    m_pub_->publish(std::move(msg_m_));
   }
   
   /**
