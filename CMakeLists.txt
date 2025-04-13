@@ -28,10 +28,19 @@ ament_target_dependencies(jump_node_hz
   std_msgs
 )
 
+add_executable(write_and_pub src/write_and_pub.cpp)
+ament_target_dependencies(write_and_pub
+  rclcpp
+  control_msgs
+  gazebo_msgs
+  std_msgs
+)
+
 
 install(TARGETS
   jump_node
   jump_node_hz
+  write_and_pub
   DESTINATION lib/${PROJECT_NAME}
 )
 

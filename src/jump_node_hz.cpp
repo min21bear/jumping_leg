@@ -80,6 +80,14 @@ public:
     input_desc.read_only = false;
     this->declare_parameter("input", 0.0, input_desc);
 
+    rcl_interfaces::msg::ParameterDescriptor up_eq_point_desc;
+    up_eq_point_desc.read_only = false;
+    this->declare_parameter("up_eq_point", 0.0, up_eq_point_desc);
+
+    rcl_interfaces::msg::ParameterDescriptor down_eq_point_desc;
+    down_eq_point_desc.read_only = false;
+    this->declare_parameter("down_eq_point", 0.0, down_eq_point_desc);
+
     rcl_interfaces::msg::ParameterDescriptor jump_point_desc;
     jump_point_desc.read_only = false;
     this->declare_parameter("jump_point", 0.0, jump_point_desc);
@@ -233,10 +241,10 @@ private:
   }
 
   // 하강, 상승에 맞춰 스프링 입력 계산
-  double spring_input(double k, double b, double jump_point)
+  double spring_input(double k, double b, double eq_point)
   { 
     // RCLCPP_INFO(this->get_logger(), "state: %f", joint_states_["thigh_to_shin"].position);
-    double theta = joint_states_["thigh_to_shin"].position - jump_point;
+    double theta = joint_states_["thigh_to_shin"].position - eq_point;
     double d_theta = joint_states_["thigh_to_shin"].velocity;
     
     msg_k_.data = -k*theta;
@@ -245,15 +253,15 @@ private:
     return -(k*theta +b*d_theta);
   }
 
-  double jumping(double base_k, double base_b, double jump_k, double jump_b, double input, double jump_point, double hz)
+  double jumping(double base_k, double base_b, double jump_k, double jump_b, double input, double up_eq_point, double down_eq_point, double hz)
   {
     if(jump_hz_trigger(hz)){
       RCLCPP_INFO(this->get_logger(), "timing is NOW!");
       msg_m_.data = -input;
-      return spring_input(jump_k, jump_b, 0) - input;
+      return spring_input(jump_k, jump_b, up_eq_point) - input;
     }
     else{
-      return spring_input(base_k, base_b, jump_point);
+      return spring_input(base_k, base_b, down_eq_point);
     }
   }
 
@@ -293,10 +301,11 @@ private:
     double up_b = get_parameter("up_b").as_double();
     
     double input = get_parameter("input").as_double();
-    double jump_point = get_parameter("jump_point").as_double();
+    double up_eq_point = get_parameter("up_eq_point").as_double();
+    double down_eq_point = get_parameter("down_eq_point").as_double();
     double hz = get_parameter("hz").as_double();
 
-    effort_commands_ = {hip_input(p, i, d), jumping(base_k, base_b, up_k, up_b, input, jump_point, hz), 0.0};  // 제어값 입력 예시
+    effort_commands_ = {hip_input(p, i, d), jumping(base_k, base_b, up_k, up_b, input, up_eq_point, down_eq_point, hz), 0.0};  // 제어값 입력 예시
     
     publish_effort_commands();
   }
