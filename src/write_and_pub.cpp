@@ -53,6 +53,8 @@ private:
   bool topic1_received_{false};
   bool topic2_received_{false};
 
+  const double PI = 3.14159265358979323846;
+
   // 각 관절의 정보를 저장하기 위한 구조체
   struct JointInfo {
     double position{0.0};
@@ -120,17 +122,19 @@ private:
     topic2_received_ = true;
   }
 
+  double compute_high(double theta1, double theta2) {
+    return 0.03 + 0.2 * std::sin(theta1 + PI/3) + 0.035 * std::sin(theta1 + PI/3) + 0.17 * std::sin(5*PI/12 - theta2/2) + 0.06;
+  }
+
   // 조건에 맞으면 joint_states_ 정보 로깅
   void log_data()
   {
     if (topic1_received_ && topic2_received_) {
-      if (!contact_detected_) {
-        // 존재하는 관절 키가 아닐 경우 0.0 값을 사용하여 안전하게 기록
-        double nee_angle = joint_states_.count("thigh_to_shin") ? joint_states_["thigh_to_shin"].position : 0.0;
-        double jump_high = joint_states_.count("slider_joint") ? joint_states_["slider_joint"].position : 0.0;
-        *output_file_ << "nee_angle : " << std::fixed << std::setprecision(3) << nee_angle << "\t"
-                      << "jump_high : " << std::fixed << std::setprecision(3) << jump_high << std::endl;
-      }
+    // 존재하는 관절 키가 아닐 경우 0.0 값을 사용하여 안전하게 기록
+    double l = compute_high(joint_states_["hip_to_thigh"].position, joint_states_["thigh_to_shin"].position);
+    double high = joint_states_.count("slider_joint") ? joint_states_["slider_joint"].position : 0.0;
+    double jump_high = high - l;
+    *output_file_ << std::fixed << std::setprecision(3) << jump_high << std::endl;
       // 두 토픽의 수신 플래그 초기화
       topic1_received_ = false;
       topic2_received_ = false;

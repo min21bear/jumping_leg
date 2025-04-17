@@ -254,9 +254,9 @@ private:
   }
 
   double jumping(double base_k, double base_b, double jump_k, double jump_b, double input, double up_eq_point, double down_eq_point, double hz)
-  {
+  { 
     if(jump_hz_trigger(hz)){
-      RCLCPP_INFO(this->get_logger(), "timing is NOW!");
+      RCLCPP_INFO(this->get_logger(), "timing is NOW");
       msg_m_.data = -input;
       return spring_input(jump_k, jump_b, up_eq_point) - input;
     }
