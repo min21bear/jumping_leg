@@ -11,43 +11,30 @@
 #include <cmath>
 #include <math.h>
 
-/**
- * @brief ROS2 노드 클래스로 Gazebo에 스폰된 URDF 로봇을 제어합니다.
- * 
- * 이 클래스는 관절 상태와 접촉 정보를 구독하고 관절에 토크 명령을 발행합니다.
- */
+
 class RobotController : public rclcpp::Node
 {
 public:
-  /**
-   * @brief 로봇 컨트롤러 노드 생성자
-   */
+
   RobotController()
   : Node("robot_controller")
   {
-    // 로그 출력
     RCLCPP_INFO(this->get_logger(), "Node start.");
     
-    // 변수 초기화
     contact_detected_ = false;
-    effort_commands_ = {0.0, 0.0, 0.0};  // 예시로 3개의 관절에 대한 명령으로 설정
+    effort_commands_ = {0.0, 0.0, 0.0};
     
-    // QoS 설정
     auto qos = rclcpp::QoS(rclcpp::KeepLast(10))
       .reliable()
       .durability_volatile();
     
-    // 토픽 구독자 및 발행자 정의 함수 호출
     define_publishers_and_subscribers(qos);
     
-    // 타이머 설정 (100Hz로 제어 명령 발행)
     timer_ = this->create_wall_timer(
       std::chrono::milliseconds(10), 
       std::bind(&RobotController::control_loop, this)
     );
     
-    // ros 파라미터 정의
-    // ros2 run jumpin_robot jump_node --ros-args -p parm__1:=%f -p parm_2:=%f -p parm_3:=%f
     rcl_interfaces::msg::ParameterDescriptor p_desc;
     p_desc.read_only = false;
     this->declare_parameter("p", 0.0, p_desc);
@@ -99,14 +86,11 @@ public:
 
 private:
 
-  //hz에 필요한 타이머 정의
   rclcpp::Time last_trigger_time_{this->now()};  
 
-  // pid 수식에 사용하기 미리 정의
   double error_integral_ = 0.0;
   double previous_error_ = 0.0;
 
-  // msg 변수 정의 및 설정
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr k_pub_;
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr b_pub_;
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr m_pub_;
@@ -114,16 +98,8 @@ private:
   std_msgs::msg::Float64 msg_b_;
   std_msgs::msg::Float64 msg_m_;
 
-  /**
-   * @brief 토픽 구독자와 발행자를 정의하는 함수
-   * @param qos QoS 설정
-   * 
-   * 구독 토픽: /dynamic_joint_states, /shin_link/bumper_states
-   * 발행 토픽: /effort_controller/commands
-   */
   void define_publishers_and_subscribers(const rclcpp::QoS& qos)
   {
-    // 구독자 정의
     joint_states_sub_ = this->create_subscription<control_msgs::msg::DynamicJointState>(
       "/dynamic_joint_states",
       qos,
@@ -135,8 +111,7 @@ private:
       qos,
       std::bind(&RobotController::contact_states_callback, this, std::placeholders::_1)
     );
-    
-    // 발행자 정의
+
     effort_pub_ = this->create_publisher<std_msgs::msg::Float64MultiArray>(
       "/effort_controller/commands",
       qos
@@ -155,23 +130,14 @@ private:
     );
   }
   
-  /**
-   * @brief /dynamic_joint_states 토픽의 콜백 함수
-   * @param msg 수신된 DynamicJointState 메시지
-   * 
-   * 관절 상태 정보를 처리합니다.
-   */
   void joint_states_callback(const control_msgs::msg::DynamicJointState::SharedPtr msg)
   {
-    // 메시지에서 관절 상태 정보 추출
     for (size_t i = 0; i < msg->joint_names.size(); ++i) {
       if (i < msg->interface_values.size()) {
         std::string joint_name = msg->joint_names[i];
         
-        // 각 관절에 대한 정보 구조체 생성
         JointInfo joint_info;
         
-        // 인터페이스 값을 찾아서 저장
         for (size_t j = 0; j < msg->interface_values[i].interface_names.size(); ++j) {
           const std::string& interface_name = msg->interface_values[i].interface_names[j];
           double value = msg->interface_values[i].values[j];
@@ -185,29 +151,16 @@ private:
           }
         }
         
-        // 관절 정보 저장
         joint_states_[joint_name] = joint_info;
       }
     }
   }
   
-  /**
-   * @brief /shin_link/bumper_states 토픽의 콜백 함수
-   * @param msg 수신된 ContactsState 메시지
-   * 
-   * 접촉 상태 정보를 처리해서 T/F로 return.
-   */
   void contact_states_callback(const gazebo_msgs::msg::ContactsState::SharedPtr msg)
   {
-    // 충돌 감지 여부 확인
     contact_detected_ = !msg->states.empty();
   }
 
-  /**
- * @brief 특정 주기(Hz 단위)에 맞춰 bool 값을 반환하는 함수
- * @param hz 원하는 주파수 (Hz)
- * @return 지정된 주기마다 true, 그 외에는 false
- */
   bool jump_hz_trigger(double hz)
   {
       rclcpp::Time now = this->now();
@@ -229,10 +182,8 @@ private:
     double target_angle = -joint_states_["thigh_to_shin"].position / 2.50048;
     double error = target_angle - joint_states_["hip_to_thigh"].position;
       
-    // 적분 항 
     error_integral_ += error * dt;
       
-    // 미분 항
     double error_derivative = (error - previous_error_) / dt;
       
     previous_error_ = error;
@@ -240,10 +191,8 @@ private:
     return p_gain * error + i_gain * error_integral_ + d_gain * error_derivative;
   }
 
-  // 하강, 상승에 맞춰 스프링 입력 계산
   double spring_input(double k, double b, double eq_point)
   { 
-    // RCLCPP_INFO(this->get_logger(), "state: %f", joint_states_["thigh_to_shin"].position);
     double theta = joint_states_["thigh_to_shin"].position - eq_point;
     double d_theta = joint_states_["thigh_to_shin"].velocity;
     
@@ -265,30 +214,17 @@ private:
     }
   }
 
-
-  /**
-   * @brief /effort_controller/commands 토픽에 메시지를 발행하는 함수
-   * 
-   * 로봇 관절에 적용할 토크 명령을 발행합니다.
-   */
   void publish_effort_commands()
   {
-    // Float64MultiArray 메시지 생성
     auto msg = std::make_unique<std_msgs::msg::Float64MultiArray>();
     msg->data = effort_commands_;
     
-    // 메시지 발행
     effort_pub_->publish(std::move(msg));
     k_pub_->publish(std::move(msg_k_));
     b_pub_->publish(std::move(msg_b_));
     m_pub_->publish(std::move(msg_m_));
   }
   
-  /**
-   * @brief 제어 로직을 수행하는 함수
-   * 
-   * 이 함수는 타이머에 의해 주기적으로 호출됩니다.
-   */
   void control_loop()
   {
     double p = get_parameter("p").as_double();
@@ -310,14 +246,12 @@ private:
     publish_effort_commands();
   }
 
-  // 관절 정보를 저장하기 위한 구조체
   struct JointInfo {
     double position = 0.0;
     double velocity = 0.0;
     double effort = 0.0;
   };
 
-  // 클래스 멤버 변수
   rclcpp::Subscription<control_msgs::msg::DynamicJointState>::SharedPtr joint_states_sub_;
   rclcpp::Subscription<gazebo_msgs::msg::ContactsState>::SharedPtr contact_states_sub_;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr effort_pub_;
@@ -328,28 +262,20 @@ private:
   std::vector<double> effort_commands_;
 };
 
-/**
- * @brief 메인 함수
- * @param argc 명령행 인수 개수
- * @param argv 명령행 인수 배열
- * @return 종료 코드
- */
 int main(int argc, char * argv[])
 {
-  // ROS2 초기화
+
   rclcpp::init(argc, argv);
   
-  // 노드 생성 및 실행
+
   auto node = std::make_shared<RobotController>();
   
   try {
-    // 노드 실행
     rclcpp::spin(node);
   } catch (const std::exception& e) {
     RCLCPP_ERROR(node->get_logger(), "fuck: %s", e.what());
   }
   
-  // ROS2 종료
   rclcpp::shutdown();
   return 0;
 }

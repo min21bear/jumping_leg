@@ -13,15 +13,12 @@ def generate_launch_description():
 
     pkg_path = os.path.join('/home/road2022/mingue/src', 'jumping_robot')
     urdf_file = os.path.join(pkg_path, 'urdf', 'robot_for_sim.urdf')
-    # world_file = os.path.join(pkg_path, 'include', 'world.sdf')
 
-    # (2) URDF 파일 읽어서 robot_description에 담기
     with open(urdf_file, 'r') as f:
         robot_description_config = f.read()
 
     robot_description = {'robot_description': robot_description_config}
 
-# Gazebo 실행
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             PathJoinSubstitution([
@@ -36,7 +33,6 @@ def generate_launch_description():
         }.items()
     )
 
-#robot_state_publisher는 이제 익숙하네요 
     node_robot_state_publisher = Node( 
         package='robot_state_publisher',
         executable='robot_state_publisher',
@@ -44,13 +40,11 @@ def generate_launch_description():
         parameters=[robot_description]
     )
 
-#gazebo 실행 및 모델 스폰 
     spawn_entity = Node(package='gazebo_ros', executable='spawn_entity.py',
                         arguments=['-topic', 'robot_description',
                                    '-entity', 'robot',],
                         output='screen')
 
-#joint 상태를 확인하는 노드(아마도 service를 사용하는 것 같습니다)
     joint_state_broadcaster_spawner = Node( 
         package="controller_manager",
         executable="spawner",
@@ -58,8 +52,6 @@ def generate_launch_description():
                    "--controller-manager", "/controller_manager"],
     )
 
-#controller 설정인데 여기선 forward_position_controller를 사용하여 position 제어를 합니다
-#여기 부분을 수정한다면 yaml 파일도 수정해야하는 것 같아요 주요 수정부분이 되는 것 같습니다. 
     effort_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",

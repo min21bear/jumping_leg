@@ -15,7 +15,6 @@ joint_state_broadcaster:
       - thigh_to_shin
       - slider_joint
 
-# Effort controller configuration
 effort_controller:
   ros__parameters:
     joints:
